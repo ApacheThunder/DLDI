@@ -68,21 +68,21 @@
 #define CARD_TIMEOUT	0x00989680				// Updated due to suggestion from SaTa, otherwise card will timeout sometimes on a write
 #define CARD_INITTIMEOUT	0x020000			// Shorter time out used during startup.
 
-static bool StartupFinished = false;
+static bool ShortTimeout = true;
 
 //---------------------------------------------------------------
 // CF Addresses (MPCF/SCCF values by default)
-static vu16 *CF_STATUS = (vu16*)0x080C0000;			// Status of the CF Card / Device control
-static vu16 *CF_FEATURES = (vu16*)0x08820000; 		// Errors / Features
-static vu16 *CF_COMMAND = (vu16*)0x088E0000;		// Commands sent to control chip and status return
+static vu16 *CF_STATUS = (vu16*)0x098C0000;			// Status of the CF Card / Device control
+static vu16 *CF_FEATURES = (vu16*)0x09020000; 		// Errors / Features
+static vu16 *CF_COMMAND = (vu16*)0x090E0000;		// Commands sent to control chip and status return
 
-static vu16 *CF_SECTOR_COUNT = (vu16*)0x08840000;	// Number of sector to transfer
-static vu16 *CF_SECTOR_NO = (vu16*)0x08860000;		// 1st byte of sector address
-static vu16 *CF_CYLINDER_LOW = (vu16*)0x08880000;	// 2nd byte of sector address
-static vu16 *CF_CYLINDER_HIGH = (vu16*)0x088A0000;	// 3rd byte of sector address
-static vu16 *CF_SEL_HEAD = (vu16*)0x088C0000;		// last nibble of sector address | 0xE0
+static vu16 *CF_SECTOR_COUNT = (vu16*)0x09040000;	// Number of sector to transfer
+static vu16 *CF_SECTOR_NO = (vu16*)0x09060000;		// 1st byte of sector address
+static vu16 *CF_CYLINDER_LOW = (vu16*)0x09080000;	// 2nd byte of sector address
+static vu16 *CF_CYLINDER_HIGH = (vu16*)0x090A0000;	// 3rd byte of sector address
+static vu16 *CF_SEL_HEAD = (vu16*)0x090C0000;		// last nibble of sector address | 0xE0
 
-static vu16 *CF_DATA = (vu16*)0x09000000;									// Pointer to buffer of CF data transered from card
+static vu16 *CF_DATA = (vu16*)0x09000000;			// Pointer to buffer of CF data transered from card
 
 // Unlock Registers (Not used by MPCF/MMCF)
 static vu16 *SC_UnlockAddress = (vu16*)0x09FFFFFE; // SC by default
@@ -153,8 +153,7 @@ void M3_ChangeMode(u32 mode) {
 static bool CF_Block_Ready(void) {
 	u32 i = 0;
 	u32 TIMEOUT = CARD_TIMEOUT;
-	
-	if (!StartupFinished)TIMEOUT = CARD_INITTIMEOUT; // Use shorter time out to speed up initial init
+	if (ShortTimeout)TIMEOUT = CARD_INITTIMEOUT; // Use shorter time out to speed up initial init
 	
 	while ((*CF_STATUS & CF_STS_BUSY) && (i < TIMEOUT)) {
 		i++;
@@ -238,7 +237,7 @@ otherwise returns false
 -----------------------------------------------------------------*/
 bool CF_StartUp(void) {
 	bool Result = CF_FindCardType();
-	StartupFinished = true;
+	ShortTimeout = false;
 	return Result;
 }
 
