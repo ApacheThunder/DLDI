@@ -19,7 +19,7 @@
 @---------------------------------------------------------------------------------
 @ Text identifier - can be anything up to 47 chars + terminating null -- 48 bytes
 	.align	4
-	.asciz "Slot-2 CompactFlash"
+	.asciz "NitroFS Direct Card"
 	
 @---------------------------------------------------------------------------------
 @ Offsets to important sections within the data	-- 32 bytes
@@ -35,14 +35,14 @@
 
 @---------------------------------------------------------------------------------
 @ IO_INTERFACE data -- 32 bytes
-	.ascii	"GBCF"			@ ioType
-	.word	FEATURE_MEDIUM_CANREAD | FEATURE_MEDIUM_CANWRITE | FEATURE_SLOT_GBA
-	.word	CF_StartUp		@ 
-	.word	CF_IsInserted	@ 
-	.word	CF_ReadSectors	@   Function pointers to standard device driver functions
-	.word	CF_WriteSectors	@ 
-	.word	CF_ClearStatus	@ 
-	.word	CF_Shutdown		@ 
+	.ascii	"NTRO"			@ ioType
+	.word	FEATURE_MEDIUM_CANREAD | FEATURE_MEDIUM_CANWRITE | FEATURE_SLOT_NDS
+	.word	IO_StartUp		@ 
+	.word	IO_IsInserted	@ 
+	.word	IO_ReadSectors	@   Function pointers to standard device driver functions
+	.word	IO_WriteSectors	@ 
+	.word	IO_ClearStatus	@ 
+	.word	IO_Shutdown		@ 
 	
 @---------------------------------------------------------------------------------
 _start:

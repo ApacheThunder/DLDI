@@ -136,7 +136,11 @@ bool ReadSectors (u32 sector, int numSecs, u16* buff) {
 #endif
 
 #if (defined _IO_USE_DMA) && (defined NDS) && (defined ARM9)
-	DC_FlushRange(buffer, numSecs * BYTES_PER_READ);
+	#ifdef _IO_ALLOW_UNALIGNED
+	DC_FlushRange(buff_u8, numSecs * BYTES_PER_READ);
+	#else
+	DC_FlushRange(buff, numSecs * BYTES_PER_READ);	
+	#endif
 #endif
 
 	if (!CF_Block_Ready())return false;
@@ -196,7 +200,11 @@ bool WriteSectors(u32 sector, int numSecs, u16* buff) {
 #endif
 	
 #if defined _IO_USE_DMA && defined NDS && defined ARM9
-	DC_FlushRange(buffer, numSecs * BYTES_PER_READ);
+	#ifdef _IO_ALLOW_UNALIGNED
+	DC_FlushRange(buff_u8, numSecs * BYTES_PER_READ);
+	#else
+	DC_FlushRange(buff, numSecs * BYTES_PER_READ);	
+	#endif
 #endif
 
 	if (!CF_Block_Ready())return false;

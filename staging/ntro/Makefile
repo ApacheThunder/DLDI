@@ -28,13 +28,12 @@ INCLUDES	:=	include
 #---------------------------------------------------------------------------------
 ARCH	:=	-mthumb-interwork
 
-CFLAGS	:=	-g -Wall -O2\
+CFLAGS	:=	-g -Wall -O2 \
 			-mcpu=arm7tdmi -mtune=arm7tdmi -fomit-frame-pointer\
 			-ffast-math -ffreestanding \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM7 -fPIC -D_IO_ALLOW_UNALIGNED -D_IO_USEFASTCNT
-
+CFLAGS	+=	$(INCLUDE) -DARM7 -fPIC
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
