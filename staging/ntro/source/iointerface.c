@@ -63,6 +63,7 @@
 // static u32 headerData[0x1000/sizeof(u32)] = {0};
 
 
+// static vu32 CachedPortFlags = 0xFFFFFFFF;
 static vu32 CachedPortFlags = 0xB11802FE;
 static ALIGN(4) u32 cardBuffer[128];
 static vu32 CardReadOffset = 0x00008000;
@@ -139,6 +140,7 @@ static inline void cardRead (u32 src, u32* dest, u32 size) {
 	while (size > 0) {
 		readSize = size < CARD_DATA_BLOCK_SIZE ? size : CARD_DATA_BLOCK_SIZE;
 		cardParamCommand (CARD_CMD_DATA_READ, src, (CachedPortFlags &~CARD_BLK_SIZE(7)) | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(1), dest, readSize);
+		// cardParamCommand (CARD_CMD_DATA_READ, src, CachedPortFlags | CARD_ACTIVATE | CARD_nRESET | CARD_BLK_SIZE(1), dest, readSize);
 		src += readSize;
 		dest += readSize/sizeof(*dest);
 		size -= readSize;
@@ -171,6 +173,7 @@ otherwise returns false
 -----------------------------------------------------------------*/
 bool IO_StartUp(void) {
 	CachedPortFlags = (CachedPortFlags & ~CARD_BLK_SIZE(7)); // Ensure correct block size. (allows easier external edit to CachedPortFlag field)
+	// CachedPortFlags = (*(u32*)0x027FFE60 & ~CARD_BLK_SIZE(1)); // Version for non N-Card related use cases. use 0x02FFFE60 if you expect to run this in TWL ram mode.
 	return cardFindImage();
 }
 
@@ -200,10 +203,11 @@ void* buffer OUT: pointer to 512 byte buffer to store data in
 bool return OUT: true if successful
 -----------------------------------------------------------------*/
 bool IO_ReadSectors(u32 sector, u32 numSecs, void* buffer) {
-	bool Result = true;
+	// bool Result = true;
 	u32 SectorStart = ((sector + (CardReadOffset / 0x200)) * 0x200);
 	cardRead(SectorStart, buffer, (numSecs * 0x200));
-	return Result;
+	// return Result;
+	return true;
 }
 
 /*-----------------------------------------------------------------
