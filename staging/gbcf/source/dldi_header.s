@@ -19,8 +19,7 @@
 @---------------------------------------------------------------------------------
 @ Text identifier - can be anything up to 47 chars + terminating null -- 48 bytes
 	.align	4
-	.asciz "Slot-2 CompactFlash"
-	
+	.asciz "Slot-2 Compact Flash"
 @---------------------------------------------------------------------------------
 @ Offsets to important sections within the data	-- 32 bytes
 	.align	6

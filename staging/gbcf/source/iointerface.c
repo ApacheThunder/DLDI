@@ -196,22 +196,31 @@ bool CF_FindCardType(void) {
 	ShortTimeout = false;
 	goto IOSCCF;
 	#endif
+	
 	#ifdef _IO_M3CF
 	ShortTimeout = false;
 	goto IOM3CF;
 	#endif
+	
 	#ifdef _IO_MMCF
 	goto IOMMCF;
 	#endif
+	
 	// Try default values first (for MPCF)
 	if (CF_IsInserted())return true;
-		
+	
+	#ifdef _IO_SCCF
 	IOSCCF:
+	#endif
+	
 	// Try SCCF (This cart uses same registers as MPCF but with additional mode switch registers)
 	SC_ChangeMode(SC_MODE_MEDIA);
 	if (CF_IsInserted())return true;
 		
+	#ifdef _IO_M3CF
 	IOM3CF:
+	#endif
+	
 	// Try M3CF Registers
 	CF_STATUS = (vu16*)0x080C0000;
 	CF_FEATURES = (vu16*)0x08820000;
@@ -226,7 +235,9 @@ bool CF_FindCardType(void) {
 	M3_ChangeMode(M3_MODE_MEDIA);
 	if (CF_IsInserted())return true;
 	
+	#ifdef _IO_MMCF
 	IOMMCF:
+	#endif
 	
 	// Try MMCF Registers
 	CF_STATUS = (vu16*)0x080E0000;

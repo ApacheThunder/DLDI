@@ -139,7 +139,7 @@ bool ReadSectors (u32 sector, int numSecs, u16* buff) {
 	#ifdef _IO_ALLOW_UNALIGNED
 	DC_FlushRange(buff_u8, numSecs * BYTES_PER_READ);
 	#else
-	DC_FlushRange(buff, numSecs * BYTES_PER_READ);	
+	DC_FlushRange(buff, numSecs * BYTES_PER_READ);
 	#endif
 #endif
 
@@ -203,7 +203,7 @@ bool WriteSectors(u32 sector, int numSecs, u16* buff) {
 	#ifdef _IO_ALLOW_UNALIGNED
 	DC_FlushRange(buff_u8, numSecs * BYTES_PER_READ);
 	#else
-	DC_FlushRange(buff, numSecs * BYTES_PER_READ);	
+	DC_FlushRange(buff, numSecs * BYTES_PER_READ);
 	#endif
 #endif
 
