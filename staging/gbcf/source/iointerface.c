@@ -50,6 +50,7 @@
 #endif
 
 #define BYTES_PER_READ 512
+#define MaxSectorCount 255
 
 //---------------------------------------------------------------
 // DMA
@@ -67,6 +68,8 @@
 #define REG_EXMEMCNT (*(vu16*)0x04000204)
 #define CARD_TIMEOUT	0x00989680				// Updated due to suggestion from SaTa, otherwise card will timeout sometimes on a write
 #define CARD_INITTIMEOUT	0x020000			// Shorter time out used during startup.
+// #define CARD_TIMEOUT	0xFF900000				// Extra long time out for users of MiniHD CF devices. :P
+// #define CARD_INITTIMEOUT	0xFF900000			// Extra long time out for users of MiniHD CF devices. :P
 
 static bool ShortTimeout = true;
 
@@ -203,6 +206,7 @@ bool CF_FindCardType(void) {
 	#endif
 	
 	#ifdef _IO_MMCF
+	ShortTimeout = false;
 	goto IOMMCF;
 	#endif
 	
@@ -296,7 +300,7 @@ bool ReadSectors (u32 sector, int numSecs, u16* buff) {
 
 	if (!CF_Block_Ready())return false;
 	
-	*CF_SECTOR_COUNT = (numSecs == 256) ? 0 : numSecs;
+	*CF_SECTOR_COUNT = (numSecs == MaxSectorCount) ? 0 : numSecs;
 	*CF_SECTOR_NO = sector;
 	*CF_CYLINDER_LOW = sector >> 8;
 	*CF_CYLINDER_HIGH = sector >> 16;
@@ -355,7 +359,7 @@ bool WriteSectors(u32 sector, int numSecs, u16* buff) {
 
 	if (!CF_Block_Ready())return false;
 	
-	*CF_SECTOR_COUNT = (numSecs == 256) ? 0 : numSecs;
+	*CF_SECTOR_COUNT = (numSecs == MaxSectorCount) ? 0 : numSecs;
 	*CF_SECTOR_NO = sector;
 	*CF_CYLINDER_LOW = sector >> 8;
 	*CF_CYLINDER_HIGH = sector >> 16;
@@ -414,7 +418,7 @@ bool CF_ReadSectors(u32 sector, u32 numSecs, void* buffer) {
 	REG_EXMEMCNT = setFastCNT(originMemStat);
 #endif
 	while (numSecs > 0) {
-		int sector_count = (numSecs > 256) ? 256 : numSecs;
+		int sector_count = (numSecs > MaxSectorCount) ? MaxSectorCount : numSecs;
 		Result = ReadSectors(sector, sector_count, (u16*)buffer);
 		sector += sector_count;
 		numSecs -= sector_count;
@@ -441,7 +445,7 @@ bool CF_WriteSectors(u32 sector, u32 numSecs, void* buffer) {
 	REG_EXMEMCNT = setFastCNT(originMemStat);
 #endif
 	while (numSecs > 0) {
-		int sector_count = (numSecs > 256) ? 256 : numSecs;
+		int sector_count = (numSecs > MaxSectorCount) ? MaxSectorCount : numSecs;
 		Result = WriteSectors(sector, sector_count, (u16*)buffer);
 		sector += sector_count;
 		numSecs -= sector_count;

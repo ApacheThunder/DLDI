@@ -24,6 +24,13 @@ void CardMeEepromWaitBusy() {
 
 #define REG_EXMEMCNT (*(vu16*)0x04000204)
 
+
+#define T1BLOCKSZ (16)
+#define T2BLOCKSZ (32)
+#define T3BLOCKSZ (256)
+#define OFOT0 (8*1024-1)	//	8KBの末端
+#define OFOT1 (2*8*1024-1)	//	16KBの末端
+
 /***********************
 void cardmeReadHeader(uint8 * header) {
 //---------------------------------------------------------------------------------
@@ -120,7 +127,7 @@ void cardmeReadEeprom(u32 address, u8 *data, u32 length, u32 addrtype) {
 //////////////////////////////////////////////////////////////////////
 
 
-#define T1BLOCKSZ (16)
+
 //  TYPE1 4kbit EEPROM
 void cardmeWriteEepromT1(u32 address, u8 *apData, u32 aLength, u32 addrtype) {
 	int i;
@@ -166,7 +173,6 @@ void cardmeWriteEepromT1(u32 address, u8 *apData, u32 aLength, u32 addrtype) {
 }
 
 
-#define T2BLOCKSZ (32)
 //  TYPE2 64kbit EEPROM
 void cardmeWriteEepromT2(u32 address, u8 *apData, u32 aLength, u32 addrtype) {
 	int i;
@@ -212,8 +218,6 @@ void cardmeWriteEepromT2(u32 address, u8 *apData, u32 aLength, u32 addrtype) {
 	}
 }
 
-
-#define T3BLOCKSZ (256)
 //  TYPE3 2Mbit FLASH MEMORY
 void cardmeWriteEepromT3(u32 address, u8 *apData, u32 aLength, u32 addrtype) {
 	int i;
@@ -389,25 +393,6 @@ void cardmeWriteEeprom(u32 address, u8 *apData, u32 aLength, u32 addrtype) {
 
 //////////////////////////////////////////////////////////////////////
 
-int cardmeSizeT3(void) {
-	u8 c9f;
-	c9f=cardmeCMD(0x9f,0);
-
-	if(c9f==0x17) { //	NEW TYPE 3+ 64Mbit(8192MByte)
-		return 8192*1024;	//	 NEW TYPE 3+ 8Mbit(1024KByte)
-	}
-	if(c9f==0x14) { //	NEW TYPE 3+ 8Mbit(1024MByte)
-		return 1024*1024;	//	 NEW TYPE 3+ 8Mbit(1024KByte)
-	}
-	if(c9f==0x13) {	//	NEW TYPE 3+ 4Mbit(512MByte)
-		return 512*1024;	//	 NEW TYPE 3+ 4Mbit(512KByte)
-	}
-	return 256*1024;		//	TYPE 3  2Mbit(256KByte)
-}
-
-
-#define OFOT0 (8*1024-1)	//	8KBの末端
-#define OFOT1 (2*8*1024-1)	//	16KBの末端
 int cardmeSizeT2(void) {
 	int tp=2;
 
@@ -431,6 +416,22 @@ int cardmeSizeT2(void) {
 	if(buf4[0]!=buf2[0])return 8*1024;	//	 8KB(64kbit)
 	
 	return 64*1024;		//	64KB(512kbit)
+}
+
+int cardmeSizeT3(void) {
+	u8 c9f;
+	c9f=cardmeCMD(0x9f,0);
+
+	if(c9f==0x17) { //	NEW TYPE 3+ 64Mbit(8192MByte)
+		return 8192*1024;	//	 NEW TYPE 3+ 8Mbit(1024KByte)
+	}
+	if(c9f==0x14) { //	NEW TYPE 3+ 8Mbit(1024MByte)
+		return 1024*1024;	//	 NEW TYPE 3+ 8Mbit(1024KByte)
+	}
+	if(c9f==0x13) {	//	NEW TYPE 3+ 4Mbit(512MByte)
+		return 512*1024;	//	 NEW TYPE 3+ 4Mbit(512KByte)
+	}
+	return 256*1024;		//	TYPE 3  2Mbit(256KByte)
 }
 
 
@@ -473,7 +474,7 @@ int cardmeGetType(void) {
 	u8 c9f;
 	// u8 c03;
 	
-	REG_EXMEMCNT &= ~0x0880;	// DS Card access ARM9:bit11=0   GBA Cart access ARM9:bit7=0
+	// REG_EXMEMCNT &= ~0x0880;	// DS Card access ARM9:bit11=0   GBA Cart access ARM9:bit7=0
 	// c03=cardmeCMD(0x03,0);
 	cardmeCMD(0x03,0);
 	c05=cardmeCMD(0x05,0);

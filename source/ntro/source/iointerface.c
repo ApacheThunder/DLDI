@@ -8,6 +8,7 @@
 	* This is similar to fcsr DLDi driver but for certain slot-1 cards.
 	  At least for certain slot 1 cards like N-Card and it's clones or for custom homebrew flashcarts that don't use a rom loader.
 	  Don't expect this to work for most modern flashcarts. Use the normal NitroFS code base for that. :P
+	* Eeprom code added to allow saving changes to file sytsem by storing altered sectors to save. Currently tested to work on N-Cards.
 	* Driver source available via standard GPL 3.0 license.
  
 */
@@ -61,16 +62,18 @@ const bool useSaveSystem = true;
 // const u32 StaticPortFlags = 0x00586000; // Value used by EZP main rom
 const u32 StaticPortFlags = 0xB11802FE; // Value hard-coded by XMENU on N-Cards
 const u32 StaticSectorOffset = 0x00000256;
+// const u32 StaticSectorOffset = 0x00000220; // Current offset for EZP fat image.
 // const u32 StaticSectorOffset = 0x00000182;
 // const u32 StaticSectorOffset = 0x00000040;
 
 const u32 MaxFindRange = 0x01000000;
 const u32 FATIMGMAGIC = 0xAA550000;
 const u32 BufferTableMagic = 0x4F52544E;
-const u32 BufferTableMaxSize = 0x1FA;
+const int BufferTableSectorSize = 4;
 
+static u32 BufferTableMaxSize = 0x1FA; // For 2mbit
+// static u32 BufferTableMaxSize = 0x406; // For 4mbit
 static vu32 CachedPortFlags = 0xFFFFFFFF; // This should use a hardcoded value if using something like hbmenu that would end up replacing the header this would have been derived from.
-static vu32 CardReadOffset = 0x00008000;
 static vu32 CachedSectorOffset = 0x00000040;
 
 static bool hasEnoughSaveData = true;
@@ -143,12 +146,13 @@ static inline void BuildEEPROMBuffer() {
 	
 	if(savetype > 0)savesize = cardmeSize(savetype);
 	
-	if (savesize < 0x3F600) {
+	if (savesize < 0x40000) {
 		hasEnoughSaveData = false;
 		return;
 	}
 	
 	cardmeReadEeprom(0, (u8*)&EEPROMBuffer, (CARD_DATA_BLOCK_SIZE * 4), savetype);
+	
 	if (EEPROMBuffer[0] != BufferTableMagic) {
 		toncset32(EEPROMBuffer, 0xFFFFFFFF, 512);
 		EEPROMBuffer[0] = BufferTableMagic;
@@ -156,9 +160,9 @@ static inline void BuildEEPROMBuffer() {
 		// Disabled for now. N-Card doesn't seem to require page/sector erases.
 		// It uses battery backed SRAM and allows writes to unerased blocks even though it shows up as type 3.
 		/*switch (savetype) {
-			case 3: for (int i = 0; i < 8; i++)cardmePageErase(i * 256); break;
+			case 3: for (int i = 0; i < (BufferTableSectorSize * 2); i++)cardmePageErase(i * 256); break;
 		}*/
-		cardmeWriteEeprom(0, (u8*)EEPROMBuffer, (CARD_DATA_BLOCK_SIZE * 4), savetype);
+		cardmeWriteEeprom(0, (u8*)EEPROMBuffer, (CARD_DATA_BLOCK_SIZE * BufferTableSectorSize), savetype);
 	} else {
 		for (int i = 1; i < BufferTableMaxSize; i++) {
 			if (EEPROMBuffer[i] == 0xFFFFFFFF)break;
@@ -173,16 +177,31 @@ bool IO_StartUp(void) {
 		CachedSectorOffset = StaticSectorOffset;
 		BuildEEPROMBuffer();
 		return useStaticPortFlags;
-	} else {
-		CachedPortFlags = (*(u32*)ROMCTRLNormalFlags & ~CARD_BLK_SIZE(7)); // Version for non N-Card related use cases. use 0x02FFFE60 if you expect to run this in TWL ram mode.
+	} 
+	
+	if (useSaveSystem) {
+		BuildEEPROMBuffer();
+		if (hasEnoughSaveData && (EEPROMBuffer[510] != 0xFFFFFFFF) && (EEPROMBuffer[511] != 0xFFFFFFFF) && (EEPROMBuffer[511] > 0x00000039)) {
+			CachedSectorOffset = EEPROMBuffer[510];
+			CachedPortFlags = EEPROMBuffer[511];
+			return true;
+		}
 	}
+	
+	CachedPortFlags = (*(u32*)ROMCTRLNormalFlags & ~CARD_BLK_SIZE(7)); // Version for non N-Card related use cases. use 0x02FFFE60 if you expect to run this in TWL ram mode.
+	
 	u32 maxRange = (MaxFindRange - 0x8000); // 16MB max read range minus the first 0x8000 block (header + NTR secure area are skipped. Can't do card reads here without card reset)
 	if (maxRange < 0x8000)maxRange = 0x8000;
+	u32 CardReadOffset = ((CachedSectorOffset * CARD_DATA_BLOCK_SIZE));
 	while (maxRange > 0) {
 		cardRead(CardReadOffset, cardBuffer, CARD_DATA_BLOCK_SIZE);
 		if (cardBuffer[0x1FC>>2] == FATIMGMAGIC) {
 			CachedSectorOffset = (CardReadOffset / CARD_DATA_BLOCK_SIZE);
-			BuildEEPROMBuffer();
+			if (useSaveSystem && hasEnoughSaveData) {
+				EEPROMBuffer[510] = CachedSectorOffset;
+				EEPROMBuffer[511] = CachedPortFlags;
+				cardmeWriteEeprom(0, (u8*)EEPROMBuffer, (BufferTableSectorSize * CARD_DATA_BLOCK_SIZE), savetype);
+			}
 			return true;
 		}
 		CardReadOffset += CARD_DATA_BLOCK_SIZE;
@@ -203,10 +222,10 @@ bool return OUT: true if successful
 bool IO_ReadSectors(u32 sector, u32 numSecs, u32* buffer) {
 	for(u32 I = 0; I < numSecs; I++) {
 		bool readCachedSector = false;
-		if ((bufferTableSize > 0) && hasEnoughSaveData) {
+		if ((bufferTableSize > 0) && hasEnoughSaveData && useSaveSystem) {
 			for (int i = 1; i < bufferTableSize; i++) {
 				if (EEPROMBuffer[i] == (sector + I)) {
-					cardmeReadEeprom(((i + 4) * CARD_DATA_BLOCK_SIZE), (u8*)&buffer[(I * 128)], CARD_DATA_BLOCK_SIZE, savetype);
+					cardmeReadEeprom(((i + BufferTableSectorSize) * CARD_DATA_BLOCK_SIZE), (u8*)&buffer[(I * 128)], CARD_DATA_BLOCK_SIZE, savetype);
 					readCachedSector = true;
 					break;
 				}
@@ -239,16 +258,16 @@ bool IO_WriteSectors(u32 sector, u32 numSecs, u32* buffer) {
 		}
 		/*switch (savetype) {
 			case 3: {
-				cardmePageErase((currentBufferTablePosition + 4) * 256);
-				cardmePageErase((currentBufferTablePosition + 5) * 256);
+				cardmePageErase((currentBufferTablePosition + BufferTableSectorSize) * 256);
+				cardmePageErase((currentBufferTablePosition + (BufferTableSectorSize + 1)) * 256);
 			} break;
 		}*/
-		cardmeWriteEeprom(((currentBufferTablePosition + 4) * CARD_DATA_BLOCK_SIZE), (u8*)&buffer[I * 128], CARD_DATA_BLOCK_SIZE, savetype);
+		cardmeWriteEeprom(((currentBufferTablePosition + BufferTableSectorSize) * CARD_DATA_BLOCK_SIZE), (u8*)&buffer[I * 128], CARD_DATA_BLOCK_SIZE, savetype);
 	}
 	/*switch (savetype) {
-		case 3: for (int i = 0; i < 8; i++)cardmePageErase(i * 256); break;
+		case 3: for (int i = 0; i < (BufferTableSectorSize * 2); i++)cardmePageErase(i * 256); break;
 	}*/
-	cardmeWriteEeprom(0, (u8*)EEPROMBuffer, (CARD_DATA_BLOCK_SIZE * 4), savetype);
+	cardmeWriteEeprom(0, (u8*)EEPROMBuffer, (CARD_DATA_BLOCK_SIZE * BufferTableSectorSize), savetype);
 	return true;
 }
 

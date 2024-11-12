@@ -5,6 +5,8 @@
 *.elf
 *.DS_Store
 *.nds
+*.gba
+*.img
 
 # Build Directory
 *build*/
