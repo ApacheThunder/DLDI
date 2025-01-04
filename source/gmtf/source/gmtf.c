@@ -48,91 +48,77 @@
 //---------------------------------------------------------------------------------
 // The following were taken from libnds
 #define	REG_CARD_DATA_RD	(*(vu32*)0x04100010)
-#define REG_AUXSPICNT	(*(vu16*)0x040001A0)
-#define REG_AUXSPICNTH	(*(vu8*)0x040001A1)
-#define REG_AUXSPIDATA	(*(vu8*)0x040001A2)
-#define REG_ROMCTRL		(*(vu32*)0x040001A4)
+#define REG_AUXSPICNT		(*(vu16*)0x040001A0)
+#define REG_AUXSPICNTH		(*(vu8*)0x040001A1)
+#define REG_AUXSPIDATA		(*(vu8*)0x040001A2)
+#define REG_ROMCTRL			(*(vu32*)0x040001A4)
 #define REG_CARD_COMMAND	((vu8*)0x040001A8)
-#define CARD_CR1_ENABLE  0x80  // in byte 1, i.e. 0x8000
-#define CARD_CR1_IRQ     0x40  // in byte 1, i.e. 0x4000
-#define CARD_BUSY         (1<<31)           // when reading, still expecting incomming data?
+#define CARD_CR1_ENABLE		0x80	// in byte 1, i.e. 0x8000
+#define CARD_CR1_IRQ		0x40	// in byte 1, i.e. 0x4000
+#define CARD_BUSY			(1<<31)	// when reading, still expecting incomming data?
 #define CARD_SPI_BUSY		(1<<7)
-#define CARD_CR1_EN	0x8000
-#define	CARD_CR1_SPI_EN	0x2000
+#define CARD_CR1_EN			0x8000
+#define	CARD_CR1_SPI_EN		0x2000
 #define	CARD_CR1_SPI_HOLD	0x40
+// ROMCTRL PORTFLAGS
+#define CARD_ACTIVATE     (1<<31)           // when writing, get the ball rolling
+#define CARD_nRESET       (1<<29)           // value on the /reset pin (1 = high out, not a reset state, 0 = low out = in reset)
+#define CARD_SEC_CMD      (1<<22)           // The command transfer will be hardware encrypted (KEY2)
+#define CARD_DELAY2(n)    (((n)&0x3F)<<16)  // Transfer delay length part 2
+#define CARD_SEC_EN       (1<<14)           // Security enable
+#define CARD_SEC_DAT      (1<<13)           // The data transfer will be hardware encrypted (KEY2)
 //---------------------------------------------------------------------------------
 
-#define SD_COMMAND_TIMEOUT 0xFFF
-#define SD_WRITE_TIMEOUT 0xFFFF
-#define CARD_CR2_SETTINGS 0xA0586000
+#define SD_COMMAND_TIMEOUT	0xFFF
+#define SD_WRITE_TIMEOUT	0xFFFF
+// #define CARD_CR2_SETTINGS	0xA0586000
+static const u32 CARD_CR2_SETTINGS = (CARD_ACTIVATE | CARD_nRESET | CARD_SEC_CMD | CARD_DELAY2(0x3F) | CARD_SEC_EN | CARD_SEC_DAT);
 
-#define READ_SINGLE_BLOCK 17
-#define WRITE_SINGLE_BLOCK 24
-#define SD_WRITE_OK 0x05
+#define READ_SINGLE_BLOCK	17
+#define WRITE_SINGLE_BLOCK	24
+#define SD_WRITE_OK			0x05
 
-void openSpi (void) 
-{
-	volatile u32 temp;
-	
+#define SPI_INIT	0xCA	// 0xCA == Init SPI or perhaps flash read/write? (Called once in GnM firmware)
+#define SPI_OPEN	0xCC	// 0xCC == enable microSD ?
+#define SPI_CLOSE	0xC8	// 0xC8 == disable microSD ?
+
+
+static volatile u32 temp;
+
+static inline void spiCommand (u8 command) {
 	REG_AUXSPICNTH = CARD_CR1_ENABLE | CARD_CR1_IRQ;
 	REG_CARD_COMMAND[0] = 0xF2;
 	REG_CARD_COMMAND[1] = 0x00;
 	REG_CARD_COMMAND[2] = 0x00;
 	REG_CARD_COMMAND[3] = 0x00;
 	REG_CARD_COMMAND[4] = 0x00;
-	REG_CARD_COMMAND[5] = 0xCC;			// 0xCC == enable microSD ?
+	REG_CARD_COMMAND[5] = command;			
 	REG_CARD_COMMAND[6] = 0x00;
 	REG_CARD_COMMAND[7] = 0x00;
 	REG_ROMCTRL = CARD_CR2_SETTINGS;
 
-	while (REG_ROMCTRL & CARD_BUSY) {
-		temp = REG_CARD_DATA_RD;
-	}
-
-	REG_AUXSPICNT = CARD_CR1_EN | CARD_CR1_SPI_EN | CARD_CR1_SPI_HOLD;
-}
-
-void closeSpi (void)
-{
-	volatile u32 temp;
-
-	REG_AUXSPICNTH = CARD_CR1_ENABLE | CARD_CR1_IRQ;
-	REG_CARD_COMMAND[0] = 0xF2;
-	REG_CARD_COMMAND[1] = 0x00;
-	REG_CARD_COMMAND[2] = 0x00;
-	REG_CARD_COMMAND[3] = 0x00;
-	REG_CARD_COMMAND[4] = 0x00;
-	REG_CARD_COMMAND[5] = 0xC8;			// 0xCC == disable microSD ?
-	REG_CARD_COMMAND[6] = 0x00;
-	REG_CARD_COMMAND[7] = 0x00;
-	REG_ROMCTRL = CARD_CR2_SETTINGS;
-
-	while (REG_ROMCTRL & CARD_BUSY) {
-		temp = REG_CARD_DATA_RD;
-	}
-
-	REG_AUXSPICNT = CARD_CR1_EN | CARD_CR1_SPI_EN | CARD_CR1_SPI_HOLD;
-	REG_AUXSPIDATA = 0xFF;
+	while (REG_ROMCTRL & CARD_BUSY)temp = REG_CARD_DATA_RD;
 	
-	while (REG_AUXSPICNT & CARD_SPI_BUSY) {};
+	REG_AUXSPICNT = CARD_CR1_EN | CARD_CR1_SPI_EN | CARD_CR1_SPI_HOLD;
+	
+	if (command == SPI_CLOSE || command == SPI_INIT)REG_AUXSPIDATA = 0xFF;
+	
+	while (REG_AUXSPICNT & CARD_SPI_BUSY);
 }
 	
-static inline u8 transferSpiByte (u8 send)
-{
+static inline u8 transferSpiByte (u8 send) {
 	REG_AUXSPIDATA = send;
 	while (REG_AUXSPICNT & CARD_SPI_BUSY);
 	return REG_AUXSPIDATA;
 }
 
-static inline u8 getSpiByte (void) 
-{
+static inline u8 getSpiByte (void) {
 	REG_AUXSPIDATA = 0xFF;
 	while (REG_AUXSPICNT & CARD_SPI_BUSY);
 	return REG_AUXSPIDATA;
 }
 
-u8 sendCommand (u8 command, u32 argument)
-{
+static inline u8 sendCommand (u8 command, u32 argument) {
 	u8 commandData[6];
 	int timeout;
 	u8 spiByte;
@@ -160,17 +146,15 @@ u8 sendCommand (u8 command, u32 argument)
 	return spiByte;
 }
 
-bool sdRead (u32 sector, u8* dest)
-{
+bool sdRead (u32 sector, u8* dest) {
 	u8 spiByte;
 	int timeout;
 	int i;
-	volatile u32 temp;
 	
-	openSpi ();
+	spiCommand(SPI_OPEN);
 	
 	if (sendCommand (READ_SINGLE_BLOCK, sector * BYTES_PER_SECTOR) != 0x00) {
-		closeSpi ();
+		spiCommand(SPI_CLOSE);
 		return false;
 	}
 
@@ -181,31 +165,28 @@ bool sdRead (u32 sector, u8* dest)
 	} while (spiByte == 0xFF && --timeout > 0);
 
 	if (spiByte != 0xFE) {
-		closeSpi ();
+		spiCommand(SPI_CLOSE);
 		return false;
 	}
 	
-	for (i = BYTES_PER_SECTOR; i > 0; i--) {
-		*dest++ = getSpiByte();
-	}
+	for (i = BYTES_PER_SECTOR; i > 0; i--)*dest++ = getSpiByte();
 
 	// Clean up CRC
 	temp = getSpiByte();
 	temp = getSpiByte();
 	
-	closeSpi ();
+	spiCommand(SPI_CLOSE);
 	return true;
 }
 
-bool sdWrite (u32 sector, u8* src)
-{
+bool sdWrite (u32 sector, u8* src) {
 	int i;
 	int timeout;
 	
-	openSpi ();
+	spiCommand(SPI_OPEN);
 	
 	if (sendCommand (WRITE_SINGLE_BLOCK, sector * BYTES_PER_SECTOR) != 0) {
-		closeSpi ();
+		spiCommand(SPI_CLOSE);
 		return false;
 	}
 	
@@ -224,7 +205,7 @@ bool sdWrite (u32 sector, u8* src)
 	
 	// Get data response
 	if ((getSpiByte() & 0x0F) != SD_WRITE_OK) {
-		closeSpi ();
+		spiCommand(SPI_CLOSE);
 		return false;
 	}
 	
@@ -232,11 +213,9 @@ bool sdWrite (u32 sector, u8* src)
 	timeout = SD_WRITE_TIMEOUT;
 	while (getSpiByte() == 0 && --timeout > 0);
 	
-	closeSpi();
+	spiCommand(SPI_CLOSE);
 	
-	if (timeout == 0) {
-		return false;
-	}
+	if (timeout == 0)return false;
 	
 	return true;
 }
@@ -259,17 +238,6 @@ bool isInserted (void) {
 	return true;
 }
 
-
-/*-----------------------------------------------------------------
-clearStatus
-Reset the card, clearing any status errors
-return  true if the card is idle and ready
------------------------------------------------------------------*/
-bool clearStatus (void) {
-	return true;
-}
-
-
 /*-----------------------------------------------------------------
 readSectors
 Read "numSectors" 512-byte sized sectors from the card into "buffer", 
@@ -280,9 +248,7 @@ bool readSectors (u32 sector, u32 numSectors, void* buffer) {
 	u8* data = (u8*)buffer;
 	
 	while (numSectors > 0) {
-		if (!sdRead (sector, data)) {
-			return false;
-		}
+		if (!sdRead (sector, data))return false;
 		sector ++;
 		data += BYTES_PER_SECTOR;
 		numSectors --;
@@ -303,14 +269,21 @@ bool writeSectors (u32 sector, u32 numSectors, void* buffer) {
 	u8* data = (u8*)buffer;
 	
 	while (numSectors > 0) {
-		if (!sdWrite (sector, data)) {
-			return false;
-		}
+		if (!sdWrite (sector, data))return false;
 		sector ++;
 		data += BYTES_PER_SECTOR;
 		numSectors --;
 	}
 	
+	return true;
+}
+
+/*-----------------------------------------------------------------
+clearStatus
+Reset the card, clearing any status errors
+return  true if the card is idle and ready
+-----------------------------------------------------------------*/
+bool clearStatus (void) {
 	return true;
 }
 
@@ -321,3 +294,4 @@ shutdown the card, performing any needed cleanup operations
 bool shutdown(void) {
 	return true;
 }
+
