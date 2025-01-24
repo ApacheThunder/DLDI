@@ -65,7 +65,9 @@
 #define CF_COMMAND       *(vu16*)(0x080E0000)
 
 #define CF_DATA			(vu16*)0x09000000		// Pointer to buffer of CF data transered from card
-#define CARD_TIMEOUT	0x00989680				// Updated due to suggestion from SaTa, otherwise card will timeout sometimes on a write
+#define CARD_TIMEOUT	0x01000000				// Updated due to suggestion from SaTa, otherwise card will timeout sometimes on a write
+
+static inline void _Spin(u32 _cycles) {	while (_cycles--)asm ("nop"); }
 
 //---------------------------------------------------------------
 // CF Commands
@@ -82,21 +84,20 @@ inline u16 setFastCNT(u16 originData) {
 }
 #endif
 
-static bool CF_Block_Ready(void) {
+static inline bool CF_Block_Ready(void) {
 	u32 i = 0;
-	
 	while ((CF_STATUS & CF_STS_BUSY) && (i < CARD_TIMEOUT)) {
 		i++;
-		while ((!(CF_STATUS & CF_STS_40)) && (i < CARD_TIMEOUT)) { i++; }
-	} 
-	
+		while ((!(CF_STATUS & CF_STS_40)) && (i < CARD_TIMEOUT)) { 
+			i++; 
+			_Spin(0x5000);
+		}
+	}
 	if (i >= CARD_TIMEOUT)return false;
-			
 	return true;
 }
 
-
-static bool CF_Set_Features(u32 feature) {
+static inline bool CF_Set_Features(u32 feature) {
 	if (!CF_Block_Ready())return false;
 	
 	CF_FEATURES = feature;
@@ -107,28 +108,7 @@ static bool CF_Set_Features(u32 feature) {
 	return true;
 }
 
-
-
-/*-----------------------------------------------------------------
-MMCF_IsInserted
-Is a compact flash card inserted?
-bool return OUT:  true if a CF card is inserted
------------------------------------------------------------------*/
-bool MMCF_IsInserted(void) {
-	if (!CF_Set_Features(0xAA))return false;
-	return true;
-}
-
-
-/*-----------------------------------------------------------------
-MMCF_ClearStatus
-Tries to make the CF card go back to idle mode
-bool return OUT:  true if a CF card is idle
------------------------------------------------------------------*/
-bool MMCF_ClearStatus(void) { return CF_Block_Ready(); }
-
-
-bool ReadSectors (u32 sector, int numSecs, u16* buff) {
+static inline bool ReadSectors (u32 sector, int numSecs, u16* buff) {
 	int i;
 #ifdef _IO_ALLOW_UNALIGNED
 	u8 *buff_u8 = (u8*)buff;
@@ -190,8 +170,7 @@ bool ReadSectors (u32 sector, int numSecs, u16* buff) {
 	return true;
 }
 
-
-bool WriteSectors(u32 sector, int numSecs, u16* buff) {
+static inline bool WriteSectors(u32 sector, int numSecs, u16* buff) {
 		
 	int i;
 #ifdef _IO_ALLOW_UNALIGNED
@@ -253,6 +232,24 @@ bool WriteSectors(u32 sector, int numSecs, u16* buff) {
 	return true;
 }
 
+
+/*-----------------------------------------------------------------
+MMCF_IsInserted
+Is a compact flash card inserted?
+bool return OUT:  true if a CF card is inserted
+-----------------------------------------------------------------*/
+bool MMCF_IsInserted(void) {
+	if (!CF_Set_Features(0xAA))return false;
+	return true;
+}
+
+
+/*-----------------------------------------------------------------
+MMCF_ClearStatus
+Tries to make the CF card go back to idle mode
+bool return OUT:  true if a CF card is idle
+-----------------------------------------------------------------*/
+bool MMCF_ClearStatus(void) { return CF_Block_Ready(); }
 
 /*-----------------------------------------------------------------
 MMCF_ReadSectors

@@ -58,10 +58,12 @@
 // Use this if using something like hbmenu which will overwrite header data upon booting something else within the fat image.
 const bool useStaticPortFlags = false;
 const bool fakeWriteSuccess = true;
-const bool useSaveSystem = true;
-// const u32 StaticPortFlags = 0x00586000; // Value used by EZP main rom
-const u32 StaticPortFlags = 0xB11802FE; // Value hard-coded by XMENU on N-Cards
-const u32 StaticSectorOffset = 0x00000256;
+const bool useSaveSystem = false;
+const u32 StaticPortFlags = 0x00416017; // Value used by official EZP main rom
+// const u32 StaticPortFlags = 0x00586000; // Value used by custom EZP main rom
+// const u32 StaticPortFlags = 0xB11802FE; // Value hard-coded by XMENU on N-Cards
+// const u32 StaticSectorOffset = 0x00001207; // / Current offset for EZP fat image when stored in official bootloader location on exploited game.
+const u32 StaticSectorOffset = 0x00000256; 
 // const u32 StaticSectorOffset = 0x00000220; // Current offset for EZP fat image.
 // const u32 StaticSectorOffset = 0x00000182;
 // const u32 StaticSectorOffset = 0x00000040;
