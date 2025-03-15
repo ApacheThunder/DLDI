@@ -86,7 +86,7 @@ static bool isSdhc = false;
 // Clean up CRC
 static volatile u32 temp;
 
-static void ndsarSendNtrCommand (const u8 cmd[8], u32 romctrl)
+static inline void ndsarSendNtrCommand (const u8 cmd[8], u32 romctrl)
 {
     REG_AUXSPICNT = CARD_CR1_EN;
 
@@ -103,7 +103,7 @@ static void ndsarSendNtrCommand (const u8 cmd[8], u32 romctrl)
     while (REG_ROMCTRL & CARD_BUSY);
 }
 
-static void ndsarNtrF2 (u32 param1, u8 param2)
+static inline void ndsarNtrF2 (u32 param1, u8 param2)
 {
     u8 cmd[8] = {0xF2, param1 >> 24, param1 >> 16, param1 >> 8,
                  param1 & 0xFF, param2, 0x00, 0x00};
@@ -111,14 +111,14 @@ static void ndsarNtrF2 (u32 param1, u8 param2)
     ndsarSendNtrCommand(cmd, CARD_CR2_SETTINGS);
 }
 
-static u8 transferSpiByte (u8 send)
+static inline u8 transferSpiByte (u8 send)
 {
 	REG_AUXSPIDATA = send;
 	while (REG_AUXSPICNT & CARD_SPI_BUSY);
 	return REG_AUXSPIDATA;
 }
 
-static u8 getSpiByte (void) 
+static inline u8 getSpiByte (void) 
 {
 	REG_AUXSPIDATA = 0xFF;
 	while (REG_AUXSPICNT & CARD_SPI_BUSY);
@@ -126,7 +126,7 @@ static u8 getSpiByte (void)
 }
 
 
-static void initSpi (u8 cmd)
+static inline void initSpi (u8 cmd)
 {
     ndsarNtrF2(0, cmd);
 
@@ -134,7 +134,7 @@ static void initSpi (u8 cmd)
 	if (cmd == SPI_STOP)transferSpiByte(0xFF);
 }
 
-static u8 getSpiByteTimeout() {
+static inline u8 getSpiByteTimeout() {
     int timeout = SD_COMMAND_TIMEOUT;
     u8 r1;
     do
@@ -145,7 +145,7 @@ static u8 getSpiByteTimeout() {
 	return r1;
 }
 
-static u8 sendCommandLen (u8 cmdId, u32 arg, void* buff, int len)
+static inline u8 sendCommandLen (u8 cmdId, u32 arg, void* buff, int len)
 {
     u8 cmd[6];
 
@@ -173,7 +173,7 @@ static u8 sendCommandLen (u8 cmdId, u32 arg, void* buff, int len)
     return r1;
 }
 
-static u8 sendCommand(u8 cmdId, u32 arg) {
+static inline u8 sendCommand(u8 cmdId, u32 arg) {
 	return sendCommandLen(cmdId, arg, NULL, 1);
 }
 
